@@ -57,12 +57,12 @@ function submitStatement(form) {
 
     // 1) 서명 JPG
     const sigBlob = Utilities.newBlob(data.signatureBytes, 'image/jpeg', baseName + '_서명.jpg');
-    const sigFile = folder.createFile(sigBlob);
+    const sigFile = makePrivate_(folder.createFile(sigBlob));
 
     // 2) 자기변론서 PDF: 구글 문서로 서식을 만들고 서명란에 서명 JPG를 넣은 뒤 PDF로 변환함
     const doc = buildDocument_(data, sigBlob, baseName);
     const docFile = DriveApp.getFileById(doc.getId());
-    const pdfFile = folder.createFile(docFile.getAs(MimeType.PDF).setName(baseName + '.pdf'));
+    const pdfFile = makePrivate_(folder.createFile(docFile.getAs(MimeType.PDF).setName(baseName + '.pdf')));
     if (KEEP_GOOGLE_DOC) {
       docFile.moveTo(folder);
     } else {
@@ -70,6 +70,7 @@ function submitStatement(form) {
     }
 
     // 3) 제출 목록 시트
+    // 학생에게는 이름·시각만 돌려주고 파일 주소는 보내지 않음
     appendLog_(root, [
       Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd HH:mm:ss'),
       data.caseNo ? '생교' + data.caseNo : '', data.name, data.gradeClass, data.gender,
@@ -177,6 +178,17 @@ function getRootFolder_() {
   return folder;
 }
 
+// 링크 공유를 끄고 소유자(배포한 교사)만 볼 수 있게 함.
+// 저장 폴더를 다른 사람과 공유했다면 그 사람은 계속 볼 수 있으므로 checkPermissions()로 확인할 것.
+function makePrivate_(file) {
+  try {
+    file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+  } catch (err) {
+    console.warn('공유 설정 변경 실패: ' + err);
+  }
+  return file;
+}
+
 function getOrCreateSubfolder_(parent, name) {
   const it = parent.getFoldersByName(name);
   return it.hasNext() ? it.next() : parent.createFolder(name);
@@ -191,7 +203,7 @@ function appendLog_(root, row) {
   }
   if (!ss) {
     ss = SpreadsheetApp.create(LOG_SHEET_NAME);
-    DriveApp.getFileById(ss.getId()).moveTo(root);
+    makePrivate_(DriveApp.getFileById(ss.getId())).moveTo(root);
     ss.getSheets()[0].appendRow([
       '제출 시각', '사건 번호', '성명', '학년/반', '성별', '관련학생', '사안 기간', '어디서',
       '무엇을/어떻게', '왜', '목격한 학생', '당시 상황', '작성일', '서명 JPG', '자기변론서 PDF'
@@ -266,4 +278,23 @@ function buildDocument_(d, sigBlob, title) {
 function setup() {
   const root = getRootFolder_();
   Logger.log('저장 폴더: ' + root.getUrl());
+  checkPermissions();
+}
+
+// 저장 폴더에 나 말고 접근할 수 있는 사람이 있는지 확인함 (편집기에서 실행 → 실행 로그 확인)
+function checkPermissions() {
+  const root = getRootFolder_();
+  const me = Session.getEffectiveUser().getEmail();
+  const others = root.getEditors().concat(root.getViewers())
+    .map(u => u.getEmail()).filter(e => e && e !== me);
+  const access = String(root.getSharingAccess());
+  Logger.log('저장 폴더: ' + root.getName() + ' (' + root.getUrl() + ')');
+  Logger.log('소유자: ' + root.getOwner().getEmail());
+  Logger.log('링크 공유: ' + access);
+  Logger.log('나 외에 접근 가능한 사람: ' + (others.length ? others.join(', ') : '없음'));
+  if (access !== 'PRIVATE' || others.length) {
+    Logger.log('⚠ 제출 파일을 나만 보려면 이 폴더의 공유를 해제하거나, 공유되지 않은 폴더를 ROOT_FOLDER_ID로 지정할 것.');
+  } else {
+    Logger.log('✓ 제출 파일은 나만 볼 수 있음.');
+  }
 }

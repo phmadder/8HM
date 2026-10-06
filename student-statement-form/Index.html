@@ -57,6 +57,16 @@
   button:disabled { opacity: .6; cursor: wait; }
   .agree { margin-top: 16px; padding: 12px; background: #fff8e1; border: 1px solid #f0d58c; border-radius: 6px; font-size: 14px; }
   .error { color: var(--danger); margin-top: 10px; font-weight: 700; white-space: pre-line; }
+  .review-note { background: #e8f0fe; border: 1px solid #b6ccf5; border-radius: 6px; padding: 12px; margin-bottom: 16px; font-size: 15px; }
+  .review-row { display: grid; grid-template-columns: 130px 1fr; border: 1px solid var(--line); border-top: none; }
+  .review-row:first-child { border-top: 1px solid var(--line); }
+  .review-row > div { padding: 8px 10px; white-space: pre-wrap; word-break: break-all; }
+  .review-row > div:first-child { background: var(--head); font-weight: 700; font-size: 14px; }
+  .review-sign { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .review-sign img { height: 56px; border-bottom: 1px solid var(--ink); }
+  .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-row button { flex: 1; padding: 14px; font-size: 17px; font-weight: 700; margin: 0; }
+  @media (max-width: 560px) { .review-row { grid-template-columns: 1fr; } }
   .done { text-align: center; padding: 40px 10px; }
   .done h2 { font-size: 22px; }
 
@@ -182,15 +192,31 @@
     </label>
 
     <div class="error" id="err" role="alert"></div>
-    <button type="submit" class="primary" id="submitBtn">제출하기</button>
+    <button type="submit" class="primary" id="submitBtn">작성 내용 확인하기</button>
   </form>
+
+  <section id="review" hidden>
+    <div class="review-note">아래 내용을 확인할 것. 고칠 부분이 있으면 <b>수정하기</b>를 누름.
+      <b>최종 제출</b>을 누르면 더 이상 고칠 수 없음.</div>
+    <div id="reviewBody"></div>
+    <div class="review-sign">
+      <span id="reviewDate"></span>
+      <span>작성 학생 <b id="reviewName"></b></span>
+      <img id="reviewSig" alt="서명">
+      <span>(서명)</span>
+    </div>
+    <div class="error" id="err2" role="alert"></div>
+    <div class="btn-row">
+      <button type="button" id="editBtn">← 수정하기</button>
+      <button type="button" class="primary" id="finalBtn">최종 제출</button>
+    </div>
+  </section>
 </div>
 
 <script>
 (function () {
   var form = document.getElementById('f');
   var errBox = document.getElementById('err');
-  var btn = document.getElementById('submitBtn');
 
   // 오늘 날짜 기본값 (한국 시간)
   var today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -223,6 +249,7 @@
     var prev = hasInk ? canvas.toDataURL() : null;
     var ratio = Math.max(window.devicePixelRatio || 1, 1);
     var rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return; // 확인 화면에서 서명 패드가 숨겨진 동안에는 건드리지 않음
     canvas.width = Math.round(rect.width * ratio);
     canvas.height = Math.round(rect.height * ratio);
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -319,28 +346,85 @@
     return miss;
   }
 
+  // ===== 확인 화면 → 수정 또는 최종 제출 =====
+  var review = document.getElementById('review');
+  var errBox2 = document.getElementById('err2');
+  var finalBtn = document.getElementById('finalBtn');
+  var pending = null;
+
+  function koDate(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    return m ? m[1] + '년 ' + Number(m[2]) + '월 ' + Number(m[3]) + '일' : '';
+  }
+  function describe(d) {
+    var period = d.periodType === 'first'
+      ? '① 처음 있는 일 (' + (koDate(d.firstDate) || '날짜 미기재') + (d.firstHour ? ' ' + d.firstHour + '시경' : '') + ')'
+      : '② ' + (d.months || '__') + '개월간 ' + (d.times || '__') + '번 정도';
+    var places = { classroom: '① 교실', toilet: '② 화장실', hallway: '③ 복도' };
+    var place = places[d.place] || ('④ 기타: 학교 안(' + (d.placeIn || '') + ') 학교 밖(' + (d.placeOut || '') + ')');
+    var witness = '① 같은 반 친구(' + (d.witnessSame || '') + ')\n② 다른 반 친구(' + (d.witnessOther || '') + ')' +
+      (d.witnessEtc ? '\n③ 기타(' + d.witnessEtc + ')' : '');
+    return [
+      ['성명', d.name],
+      ['학년/반 · 성별', d.grade + '학년 ' + d.klass + '반 · ' + d.gender],
+      ['누가 (관련학생 모두)', d.related || '-'],
+      ['사안 기간', period],
+      ['어디서', place],
+      ['무엇을 / 어떻게', d.what],
+      ['왜', d.why],
+      ['목격한 학생 (모두)', witness],
+      ['당시 상황', d.detail]
+    ];
+  }
+  function showReview(d) {
+    document.getElementById('reviewBody').innerHTML = describe(d).map(function (r) {
+      return '<div class="review-row"><div>' + escapeHtml(r[0]) + '</div><div>' + escapeHtml(r[1]) + '</div></div>';
+    }).join('');
+    document.getElementById('reviewDate').textContent = '작성일 ' + koDate(d.writtenDate);
+    document.getElementById('reviewName').textContent = d.name;
+    document.getElementById('reviewSig').src = d.signature;
+    errBox2.textContent = '';
+    form.hidden = true; review.hidden = false;
+    window.scrollTo(0, 0);
+  }
+
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     errBox.textContent = '';
     var d = collect();
     var miss = check(d);
     if (miss.length) { errBox.textContent = '다음 항목을 채울 것: ' + miss.join(', '); return; }
-    if (!confirm('제출하면 수정할 수 없음. 제출할까요?')) return;
     d.signature = signatureJpeg();
-    btn.disabled = true; btn.textContent = '제출 중...';
+    pending = d;
+    showReview(d);
+  });
+
+  // 수정하기: 입력한 내용과 서명을 그대로 둔 채 작성 화면으로 돌아감
+  document.getElementById('editBtn').addEventListener('click', function () {
+    pending = null;
+    review.hidden = true; form.hidden = false;
+    resizePad();
+    window.scrollTo(0, 0);
+  });
+
+  finalBtn.addEventListener('click', function () {
+    if (!pending) return;
+    finalBtn.disabled = true; finalBtn.textContent = '제출 중...';
+    document.getElementById('editBtn').disabled = true;
     google.script.run
       .withSuccessHandler(function (res) {
         document.getElementById('paper').innerHTML =
           '<div class="done"><h2>제출 완료</h2><p>' + escapeHtml(res.name) +
           ' 학생의 자기변론서가 제출되었음.<br>(' + escapeHtml(res.submittedAt) + ')</p>' +
-          '<p class="hint">이 창은 닫아도 됨.</p></div>';
+          '<p class="hint">제출한 내용은 담당 선생님만 볼 수 있음. 이 창은 닫아도 됨.</p></div>';
         window.scrollTo(0, 0);
       })
       .withFailureHandler(function (err) {
-        btn.disabled = false; btn.textContent = '제출하기';
-        errBox.textContent = '제출 실패: ' + (err && err.message ? err.message : err);
+        finalBtn.disabled = false; finalBtn.textContent = '최종 제출';
+        document.getElementById('editBtn').disabled = false;
+        errBox2.textContent = '제출 실패: ' + (err && err.message ? err.message : err);
       })
-      .submitStatement(d);
+      .submitStatement(pending);
   });
 
   function escapeHtml(s) {
