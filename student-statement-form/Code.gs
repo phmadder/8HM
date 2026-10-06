@@ -138,6 +138,15 @@ function validate_(f) {
   d.signatureBytes = Utilities.base64Decode(sig.slice(prefix.length));
   if (d.signatureBytes.length > MAX_SIGNATURE_BYTES) throw new Error('서명 이미지가 너무 큼.');
 
+  // PDF의 "(서명)" 위에 겹칠 투명 배경 PNG (없으면 JPG를 나란히 넣음)
+  const pngPrefix = 'data:image/png;base64,';
+  const overlay = String(f.signatureOverlay || '');
+  if (overlay.indexOf(pngPrefix) === 0) {
+    const bytes = Utilities.base64Decode(overlay.slice(pngPrefix.length));
+    if (bytes.length > MAX_SIGNATURE_BYTES) throw new Error('서명 이미지가 너무 큼.');
+    d.overlayBlob = Utilities.newBlob(bytes, 'image/png', 'signature.png');
+  }
+
   d.gradeClass = d.grade + '학년 ' + d.klass + '반';
   d.periodText = d.periodType === 'first'
     ? '① 처음 있는 일 (' + formatKoreanDate_(d.firstDate) + (d.firstHour ? ' ' + d.firstHour + '시경' : '') + ')'
@@ -253,14 +262,7 @@ function buildDocument_(d, sigBlob, title) {
 
   body.appendParagraph('');
   body.appendParagraph('작성일  ' + d.writtenDateText).setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
-  const signLine = body.appendParagraph('작성 학생  ' + d.name + '  ');
-  signLine.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
-  const img = signLine.appendInlineImage(sigBlob.copyBlob());
-  // 서명 크기: 높이 45pt 기준, 너무 넓으면 너비 180pt에 맞춤 (비율 유지)
-  const w = img.getWidth(), h = img.getHeight();
-  const scale = Math.min(45 / h, 180 / w);
-  img.setWidth(Math.round(w * scale)).setHeight(Math.round(h * scale));
-  signLine.appendText(' (서명)');
+  placeSignature_(body, d, sigBlob);
 
   if (d.caseNo) {
     body.appendParagraph('사건 번호: 생교' + d.caseNo).editAsText().setFontSize(8);
@@ -271,6 +273,48 @@ function buildDocument_(d, sigBlob, title) {
 
   doc.saveAndClose();
   return doc;
+}
+
+// "작성 학생 ○○○ (서명)" 줄을 만들고, 서명을 "(서명)" 글자 위에 겹쳐 얹음.
+// 겹치기에는 배경이 투명한 PNG를 씀(흰 배경 JPG는 글자를 가리기 때문).
+// PNG가 없거나 겹치기가 실패하면 JPG를 "(서명)" 앞에 나란히 넣음.
+function placeSignature_(body, d, jpgBlob) {
+  const FONT = 12;                         // 서명줄 글자 크기(pt)
+  const SEAL_W = FONT * 2 + FONT * 0.66;   // "(서명)" 너비 근사: 한글 2자 + 괄호 2개
+  const LINE_H = FONT * 1.3;               // 한 줄 높이 근사
+  const MAX_H = 40, MAX_W = 90;            // 서명 최대 크기(pt)
+  const contentW = body.getPageWidth() - body.getMarginLeft() - body.getMarginRight();
+
+  // 서명이 위로 튀어나올 자리를 빈 줄로 확보함.
+  // (구글 문서는 그림의 세로 위치를 '문단 위 여백'까지 포함해 재므로 서명줄 자체의 위 여백은 0으로 둠)
+  body.appendParagraph('').editAsText().setFontSize(FONT);
+  const line = body.appendParagraph('작성 학생   ' + d.name + '          (서명)');
+  line.setAlignment(DocumentApp.HorizontalAlignment.RIGHT)
+    .setSpacingBefore(0).setSpacingAfter(16)
+    .editAsText().setFontSize(FONT);
+
+  if (d.overlayBlob) {
+    let img = null;
+    try {
+      img = line.addPositionedImage(d.overlayBlob);
+      const scale = Math.min(MAX_H / img.getHeight(), MAX_W / img.getWidth());
+      const w = img.getWidth() * scale, h = img.getHeight() * scale;
+      img.setWidth(Math.round(w)).setHeight(Math.round(h))
+        .setLayout(DocumentApp.PositionedLayout.ABOVE_TEXT)
+        .setLeftOffset(contentW - SEAL_W / 2 - w / 2)    // 가로: "(서명)" 가운데
+        .setTopOffset((LINE_H - h) / 2);                // 세로: 글자 줄 가운데
+      return;
+    } catch (err) {
+      console.warn('서명 겹치기 실패, 나란히 넣기로 대체: ' + err);
+      if (img) line.removePositionedImage(img.getId());
+    }
+  }
+  line.setText('작성 학생   ' + d.name + '  ');
+  const img = line.appendInlineImage(jpgBlob.copyBlob());
+  const scale = Math.min(MAX_H / img.getHeight(), MAX_W / img.getWidth());
+  img.setWidth(Math.round(img.getWidth() * scale)).setHeight(Math.round(img.getHeight() * scale));
+  line.appendText(' (서명)');
+  line.editAsText().setFontSize(FONT);
 }
 
 // ===== 권한 승인용 (배포 전 편집기에서 한 번 실행) =====

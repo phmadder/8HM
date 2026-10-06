@@ -62,8 +62,10 @@
   .review-row:first-child { border-top: 1px solid var(--line); }
   .review-row > div { padding: 8px 10px; white-space: pre-wrap; word-break: break-all; }
   .review-row > div:first-child { background: var(--head); font-weight: 700; font-size: 14px; }
-  .review-sign { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
-  .review-sign img { height: 56px; border-bottom: 1px solid var(--ink); }
+  .review-sign { display: flex; justify-content: flex-end; align-items: center; gap: 8px 12px; margin-top: 16px; padding: 18px 0; flex-wrap: wrap; }
+  .seal { position: relative; display: inline-block; padding: 0 4px; margin-right: 48px; }
+  .seal img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    height: 52px; max-width: 130px; object-fit: contain; pointer-events: none; }
   .btn-row { display: flex; gap: 10px; margin-top: 20px; }
   .btn-row button { flex: 1; padding: 14px; font-size: 17px; font-weight: 700; margin: 0; }
   @media (max-width: 560px) { .review-row { grid-template-columns: 1fr; } }
@@ -202,8 +204,7 @@
     <div class="review-sign">
       <span id="reviewDate"></span>
       <span>작성 학생 <b id="reviewName"></b></span>
-      <img id="reviewSig" alt="서명">
-      <span>(서명)</span>
+      <span class="seal">(서명)<img id="reviewSig" alt="서명"></span>
     </div>
     <div class="error" id="err2" role="alert"></div>
     <div class="btn-row">
@@ -296,8 +297,10 @@
   window.addEventListener('resize', resizePad);
   resizePad();
 
-  // 서명이 그려진 영역만 잘라내고(여백 포함), JPG는 투명 배경이 없으므로 흰 배경 위에 합성해서 변환함
-  function signatureJpeg() {
+  // 서명이 그려진 영역만 잘라냄(여백 포함).
+  // jpg: 보관용 (JPG는 투명 배경이 없으므로 흰 배경 위에 합성)
+  // png: PDF의 "(서명)" 글자 위에 겹쳐 얹는 용도 (배경 투명)
+  function signatureImages() {
     var w = canvas.width, h = canvas.height;
     var px = ctx.getImageData(0, 0, w, h).data;
     var minX = w, minY = h, maxX = -1, maxY = -1;
@@ -317,9 +320,11 @@
     var out = document.createElement('canvas');
     out.width = cw; out.height = ch;
     var o = out.getContext('2d');
-    o.fillStyle = '#fff'; o.fillRect(0, 0, cw, ch);
     o.drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
-    return out.toDataURL('image/jpeg', 0.92);
+    var png = out.toDataURL('image/png');
+    o.globalCompositeOperation = 'destination-over';
+    o.fillStyle = '#fff'; o.fillRect(0, 0, cw, ch);
+    return { jpg: out.toDataURL('image/jpeg', 0.92), png: png };
   }
 
   // ===== 제출 =====
@@ -382,7 +387,7 @@
     }).join('');
     document.getElementById('reviewDate').textContent = '작성일 ' + koDate(d.writtenDate);
     document.getElementById('reviewName').textContent = d.name;
-    document.getElementById('reviewSig').src = d.signature;
+    document.getElementById('reviewSig').src = d.signatureOverlay;
     errBox2.textContent = '';
     form.hidden = true; review.hidden = false;
     window.scrollTo(0, 0);
@@ -394,7 +399,9 @@
     var d = collect();
     var miss = check(d);
     if (miss.length) { errBox.textContent = '다음 항목을 채울 것: ' + miss.join(', '); return; }
-    d.signature = signatureJpeg();
+    var sig = signatureImages();
+    d.signature = sig.jpg;
+    d.signatureOverlay = sig.png;
     pending = d;
     showReview(d);
   });
