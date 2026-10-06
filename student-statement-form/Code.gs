@@ -4,7 +4,7 @@
  * 학생이 웹 화면에서 자기변론서를 작성하고 손글씨 서명을 하면
  * 배포한 교사의 구글 드라이브 폴더에 다음을 저장함.
  *   1) 서명 이미지 (JPG)
- *   2) 작성된 자기변론서 (구글 문서, 서명 이미지 포함)
+ *   2) 작성된 자기변론서 PDF (서명란에 서명 JPG가 얹힌 합본)
  *   3) 제출 목록 (구글 시트, 1제출 = 1행)
  */
 
@@ -22,6 +22,9 @@ const SCHOOL_NAME = '삼계부사관고등학교';
 const TIMEZONE = 'Asia/Seoul';
 const MAX_SIGNATURE_BYTES = 2 * 1024 * 1024;
 const LOG_SHEET_NAME = '제출 목록';
+
+// PDF를 만들 때 거치는 구글 문서를 남길지 여부. false면 PDF만 남기고 구글 문서는 휴지통으로 보냄.
+const KEEP_GOOGLE_DOC = false;
 
 // ===== 웹 화면 =====
 
@@ -56,10 +59,15 @@ function submitStatement(form) {
     const sigBlob = Utilities.newBlob(data.signatureBytes, 'image/jpeg', baseName + '_서명.jpg');
     const sigFile = folder.createFile(sigBlob);
 
-    // 2) 자기변론서 구글 문서
+    // 2) 자기변론서 PDF: 구글 문서로 서식을 만들고 서명란에 서명 JPG를 넣은 뒤 PDF로 변환함
     const doc = buildDocument_(data, sigBlob, baseName);
     const docFile = DriveApp.getFileById(doc.getId());
-    docFile.moveTo(folder);
+    const pdfFile = folder.createFile(docFile.getAs(MimeType.PDF).setName(baseName + '.pdf'));
+    if (KEEP_GOOGLE_DOC) {
+      docFile.moveTo(folder);
+    } else {
+      docFile.setTrashed(true);
+    }
 
     // 3) 제출 목록 시트
     appendLog_(root, [
@@ -67,7 +75,7 @@ function submitStatement(form) {
       data.caseNo ? '생교' + data.caseNo : '', data.name, data.gradeClass, data.gender,
       data.related, data.periodText, data.placeText,
       data.what, data.why, data.witnessText, data.detail, data.writtenDate,
-      sigFile.getUrl(), docFile.getUrl()
+      sigFile.getUrl(), pdfFile.getUrl()
     ]);
 
     return { ok: true, name: data.name, submittedAt: Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd HH:mm') };
@@ -186,7 +194,7 @@ function appendLog_(root, row) {
     DriveApp.getFileById(ss.getId()).moveTo(root);
     ss.getSheets()[0].appendRow([
       '제출 시각', '사건 번호', '성명', '학년/반', '성별', '관련학생', '사안 기간', '어디서',
-      '무엇을/어떻게', '왜', '목격한 학생', '당시 상황', '작성일', '서명 JPG', '자기변론서 문서'
+      '무엇을/어떻게', '왜', '목격한 학생', '당시 상황', '작성일', '서명 JPG', '자기변론서 PDF'
     ]);
     ss.getSheets()[0].setFrozenRows(1);
     props.setProperty('LOG_SHEET_ID', ss.getId());
@@ -200,6 +208,7 @@ function appendLog_(root, row) {
 function buildDocument_(d, sigBlob, title) {
   const doc = DocumentApp.create(title);
   const body = doc.getBody();
+  body.setPageWidth(595.28).setPageHeight(841.89); // A4
   body.setMarginTop(50).setMarginBottom(50).setMarginLeft(50).setMarginRight(50);
 
   body.appendParagraph('서식2').editAsText().setFontSize(9);
@@ -235,9 +244,10 @@ function buildDocument_(d, sigBlob, title) {
   const signLine = body.appendParagraph('작성 학생  ' + d.name + '  ');
   signLine.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
   const img = signLine.appendInlineImage(sigBlob.copyBlob());
+  // 서명 크기: 높이 45pt 기준, 너무 넓으면 너비 180pt에 맞춤 (비율 유지)
   const w = img.getWidth(), h = img.getHeight();
-  const targetH = 50;
-  img.setHeight(targetH).setWidth(Math.round(w * targetH / h));
+  const scale = Math.min(45 / h, 180 / w);
+  img.setWidth(Math.round(w * scale)).setHeight(Math.round(h * scale));
   signLine.appendText(' (서명)');
 
   if (d.caseNo) {
