@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>학생 자기변론서</title>
+<style>
+  :root {
+    --ink: #1f2328; --muted: #59636e; --line: #c9d1d9; --head: #f1f3f4;
+    --accent: #1a56db; --danger: #c62828; --bg: #f6f7f9; --paper: #fff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+  .paper { max-width: 760px; margin: 16px auto; background: var(--paper);
+    border: 1px solid var(--line); border-radius: 8px; padding: 20px 16px 28px; }
+  .form-no { font-size: 13px; color: var(--muted); }
+  h1 { text-align: center; font-size: 26px; letter-spacing: 6px; margin: 4px 0 6px; }
+  .notice { text-align: center; font-size: 14px; color: var(--muted); margin: 0 0 18px; }
+  .case { text-align: center; font-size: 13px; color: var(--accent); margin-bottom: 12px; }
+
+  .row { display: grid; grid-template-columns: 130px 1fr; border: 1px solid var(--line); border-top: none; }
+  .row:first-of-type { border-top: 1px solid var(--line); }
+  .row > .th { background: var(--head); font-weight: 700; font-size: 14px; padding: 10px;
+    display: flex; flex-direction: column; justify-content: center; text-align: center; }
+  .row > .th small { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .row > .td { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .req::after { content: " *"; color: var(--danger); }
+
+  input[type=text], input[type=number], input[type=date], input[type=password], select, textarea {
+    font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
+    width: 100%; background: #fff; color: var(--ink); }
+  textarea { min-height: 90px; resize: vertical; }
+  textarea.long { min-height: 180px; }
+  .inline, .row > .td.inline { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .inline input[type=number] { width: 72px; }
+  .inline input[type=date] { width: auto; }
+  label.opt { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+  .hint { font-size: 12px; color: var(--muted); }
+  .sub { display: none; padding-left: 4px; }
+  .sub.on { display: flex; }
+
+  .sign-area { margin-top: 22px; }
+  .sign-meta { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: flex-end; align-items: center; }
+  .pad-wrap { margin-top: 12px; }
+  .pad-wrap p { margin: 0 0 6px; font-weight: 700; }
+  canvas#pad { width: 100%; height: 200px; border: 2px dashed var(--line); border-radius: 8px;
+    background: #fff; touch-action: none; display: block; }
+  canvas#pad.signed { border-color: var(--accent); border-style: solid; }
+  .pad-tools { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+
+  button { font: inherit; border-radius: 6px; border: 1px solid var(--line); background: #fff;
+    padding: 8px 14px; cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent);
+    width: 100%; padding: 14px; font-size: 18px; font-weight: 700; margin-top: 20px; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .agree { margin-top: 16px; padding: 12px; background: #fff8e1; border: 1px solid #f0d58c; border-radius: 6px; font-size: 14px; }
+  .error { color: var(--danger); margin-top: 10px; font-weight: 700; white-space: pre-line; }
+  .review-note { background: #e8f0fe; border: 1px solid #b6ccf5; border-radius: 6px; padding: 12px; margin-bottom: 16px; font-size: 15px; }
+  .review-row { display: grid; grid-template-columns: 130px 1fr; border: 1px solid var(--line); border-top: none; }
+  .review-row:first-child { border-top: 1px solid var(--line); }
+  .review-row > div { padding: 8px 10px; white-space: pre-wrap; word-break: break-all; }
+  .review-row > div:first-child { background: var(--head); font-weight: 700; font-size: 14px; }
+  .review-sign { display: flex; justify-content: flex-end; align-items: center; gap: 8px 12px; margin-top: 16px; padding: 18px 0; flex-wrap: wrap; }
+  .seal { position: relative; display: inline-block; padding: 0 4px; margin-right: 48px; }
+  .seal img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    height: 52px; max-width: 130px; object-fit: contain; pointer-events: none; }
+  .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-row button { flex: 1; padding: 14px; font-size: 17px; font-weight: 700; margin: 0; }
+  @media (max-width: 560px) { .review-row { grid-template-columns: 1fr; } }
+  .done { text-align: center; padding: 40px 10px; }
+  .done h2 { font-size: 22px; }
+
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 1fr; }
+    .row > .th { text-align: left; flex-direction: row; gap: 6px; align-items: baseline; justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="paper" id="paper">
+  <div class="form-no">서식2</div>
+  <h1>학생 자기변론서</h1>
+  <p class="notice">학생은 불리한 진술을 거부할 수 있으나, 본인에게 불이익이 발생할 수 있음을 알립니다.</p>
+  <? if (caseNo) { ?><div class="case">사건 번호: 생교<?= caseNo ?></div><? } ?>
+
+  <form id="f" novalidate>
+    <input type="hidden" name="caseNo" value="<?= caseNo ?>">
+
+    <div class="row">
+      <div class="th req">성명</div>
+      <div class="td"><input type="text" name="name" maxlength="30" autocomplete="name" required></div>
+    </div>
+    <div class="row">
+      <div class="th req">학년/반 · 성별</div>
+      <div class="td inline">
+        <select name="grade" required style="width:auto">
+          <option value="">학년</option><option>1</option><option>2</option><option>3</option>
+        </select>학년
+        <input type="number" name="klass" min="1" max="20" placeholder="반" required>반
+        <span style="width:12px"></span>
+        <label class="opt"><input type="radio" name="gender" value="남" required>남</label>
+        <label class="opt"><input type="radio" name="gender" value="여">여</label>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="th">누가<small>(관련학생 모두)</small></div>
+      <div class="td"><input type="text" name="related" maxlength="500" placeholder="예) 홍길동(3-2), 김철수(3-1)"></div>
+    </div>
+
+    <div class="row">
+      <div class="th req">사안 기간</div>
+      <div class="td">
+        <label class="opt"><input type="radio" name="periodType" value="first" required> ① 처음 있는 일</label>
+        <div class="sub inline" data-for="first">
+          <input type="date" name="firstDate">
+          <input type="number" name="firstHour" min="0" max="23" placeholder="시">시경
+        </div>
+        <label class="opt"><input type="radio" name="periodType" value="repeat"> ② 여러 번 있었던 일</label>
+        <div class="sub inline" data-for="repeat">
+          <input type="number" name="months" min="0" max="120">개월간
+          <input type="number" name="times" min="0" max="999">번 정도
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="th req">어디서</div>
+      <div class="td">
+        <div class="inline">
+          <label class="opt"><input type="radio" name="place" value="classroom" required> ① 교실</label>
+          <label class="opt"><input type="radio" name="place" value="toilet"> ② 화장실</label>
+          <label class="opt"><input type="radio" name="place" value="hallway"> ③ 복도</label>
+          <label class="opt"><input type="radio" name="place" value="etc"> ④ 기타</label>
+        </div>
+        <div class="sub inline" data-for="etc">
+          학교 안(<input type="text" name="placeIn" maxlength="100" style="width:150px" placeholder="예) 기숙사">)
+          학교 밖(<input type="text" name="placeOut" maxlength="100" style="width:150px">)
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="th req">무엇을 / 어떻게<small>(상황, 기간 등 기록)</small></div>
+      <div class="td"><textarea name="what" maxlength="2000" required></textarea></div>
+    </div>
+    <div class="row">
+      <div class="th req">왜</div>
+      <div class="td"><textarea name="why" maxlength="2000" required></textarea></div>
+    </div>
+    <div class="row">
+      <div class="th">목격한 학생<small>(모두)</small></div>
+      <div class="td">
+        <div class="inline">① 같은 반 친구(<input type="text" name="witnessSame" maxlength="300" style="flex:1;min-width:140px">)</div>
+        <div class="inline">② 다른 반 친구(<input type="text" name="witnessOther" maxlength="300" style="flex:1;min-width:140px">)</div>
+        <div class="inline">③ 기타(<input type="text" name="witnessEtc" maxlength="300" style="flex:1;min-width:140px" placeholder="예) 사감 선생님">)</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="th req">당시 상황을<br>자세하게 기술</div>
+      <div class="td">
+        <textarea class="long" name="detail" maxlength="5000" required></textarea>
+        <span class="hint">언제, 어디서, 누구와, 무엇을, 어떻게, 왜 했는지 사실대로 적을 것.</span>
+      </div>
+    </div>
+
+    <div class="sign-area">
+      <div class="sign-meta">
+        <label class="inline req">작성일 <input type="date" name="writtenDate" required></label>
+        <span>작성 학생 <b id="signName">&nbsp;&nbsp;&nbsp;&nbsp;</b> (서명)</span>
+      </div>
+      <div class="pad-wrap">
+        <p class="req">아래 칸에 손가락이나 마우스로 서명할 것</p>
+        <canvas id="pad" aria-label="서명란"></canvas>
+        <div class="pad-tools">
+          <span class="hint" id="padHint">서명하지 않았음</span>
+          <button type="button" id="clearBtn">지우고 다시 서명</button>
+        </div>
+      </div>
+    </div>
+
+    <? if (needCode) { ?>
+    <div class="row" style="margin-top:16px;border-top:1px solid var(--line)">
+      <div class="th req">입장 코드</div>
+      <div class="td"><input type="password" name="accessCode" autocomplete="off" required></div>
+    </div>
+    <? } ?>
+
+    <label class="agree opt">
+      <input type="checkbox" name="agree">
+      위 내용은 사실이며, 불리한 진술을 거부할 수 있다는 안내를 확인했음.
+    </label>
+
+    <div class="error" id="err" role="alert"></div>
+    <button type="submit" class="primary" id="submitBtn">작성 내용 확인하기</button>
+  </form>
+
+  <section id="review" hidden>
+    <div class="review-note">아래 내용을 확인할 것. 고칠 부분이 있으면 <b>수정하기</b>를 누름.
+      <b>최종 제출</b>을 누르면 더 이상 고칠 수 없음.</div>
+    <div id="reviewBody"></div>
+    <div class="review-sign">
+      <span id="reviewDate"></span>
+      <span>작성 학생 <b id="reviewName"></b></span>
+      <span class="seal">(서명)<img id="reviewSig" alt="서명"></span>
+    </div>
+    <div class="error" id="err2" role="alert"></div>
+    <div class="btn-row">
+      <button type="button" id="editBtn">← 수정하기</button>
+      <button type="button" class="primary" id="finalBtn">최종 제출</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById('f');
+  var errBox = document.getElementById('err');
+
+  // 오늘 날짜 기본값 (한국 시간)
+  var today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  form.writtenDate.value = today;
+
+  // 이름 → 서명줄에 표시
+  form.name.addEventListener('input', function () {
+    document.getElementById('signName').textContent = form.name.value || '    ';
+  });
+
+  // 선택에 따라 세부 입력칸 보이기
+  function syncSubs() {
+    var period = (form.querySelector('input[name=periodType]:checked') || {}).value;
+    var place = (form.querySelector('input[name=place]:checked') || {}).value;
+    document.querySelectorAll('.sub').forEach(function (el) {
+      var k = el.getAttribute('data-for');
+      el.classList.toggle('on', k === period || k === place);
+    });
+  }
+  form.addEventListener('change', syncSubs);
+  form.addEventListener('input', function () { errBox.textContent = ''; });
+
+  // ===== 서명 패드 =====
+  var canvas = document.getElementById('pad');
+  var ctx = canvas.getContext('2d');
+  var drawing = false, hasInk = false, last = null;
+
+  function resizePad() {
+    // 크기가 바뀌면 이전 서명을 보존해서 다시 그림
+    var prev = hasInk ? canvas.toDataURL() : null;
+    var ratio = Math.max(window.devicePixelRatio || 1, 1);
+    var rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return; // 확인 화면에서 서명 패드가 숨겨진 동안에는 건드리지 않음
+    canvas.width = Math.round(rect.width * ratio);
+    canvas.height = Math.round(rect.height * ratio);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2.6;
+    if (prev) {
+      var img = new Image();
+      img.onload = function () { ctx.drawImage(img, 0, 0, rect.width, rect.height); };
+      img.src = prev;
+    }
+  }
+  function point(e) {
+    var r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  canvas.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    drawing = true; last = point(e);
+    ctx.beginPath(); ctx.arc(last.x, last.y, ctx.lineWidth / 2, 0, Math.PI * 2); ctx.fillStyle = '#000'; ctx.fill();
+    markInk();
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    if (!drawing) return;
+    e.preventDefault();
+    var p = point(e);
+    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    last = p;
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) {
+    canvas.addEventListener(t, function () { drawing = false; });
+  });
+  function markInk() {
+    hasInk = true;
+    canvas.classList.add('signed');
+    document.getElementById('padHint').textContent = '서명 완료';
+  }
+  document.getElementById('clearBtn').addEventListener('click', function () {
+    hasInk = false;
+    canvas.classList.remove('signed');
+    document.getElementById('padHint').textContent = '서명하지 않았음';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  });
+  window.addEventListener('resize', resizePad);
+  resizePad();
+
+  // 서명이 그려진 영역만 잘라냄(여백 포함).
+  // jpg: 보관용 (JPG는 투명 배경이 없으므로 흰 배경 위에 합성)
+  // png: PDF의 "(서명)" 글자 위에 겹쳐 얹는 용도 (배경 투명)
+  function signatureImages() {
+    var w = canvas.width, h = canvas.height;
+    var px = ctx.getImageData(0, 0, w, h).data;
+    var minX = w, minY = h, maxX = -1, maxY = -1;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        if (px[(y * w + x) * 4 + 3] > 0) {
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) { minX = 0; minY = 0; maxX = w - 1; maxY = h - 1; }
+    var pad = Math.round(h * 0.06);
+    minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+    maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+    var cw = maxX - minX + 1, ch = maxY - minY + 1;
+    var out = document.createElement('canvas');
+    out.width = cw; out.height = ch;
+    var o = out.getContext('2d');
+    o.drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
+    var png = out.toDataURL('image/png');
+    o.globalCompositeOperation = 'destination-over';
+    o.fillStyle = '#fff'; o.fillRect(0, 0, cw, ch);
+    return { jpg: out.toDataURL('image/jpeg', 0.92), png: png };
+  }
+
+  // ===== 제출 =====
+  function collect() {
+    var fd = new FormData(form), data = {};
+    fd.forEach(function (v, k) { data[k] = typeof v === 'string' ? v.trim() : v; });
+    data.agree = form.agree.checked;
+    return data;
+  }
+  function check(d) {
+    var miss = [];
+    if (!d.name) miss.push('성명');
+    if (!d.grade || !d.klass) miss.push('학년/반');
+    if (!d.gender) miss.push('성별');
+    if (!d.periodType) miss.push('사안 기간');
+    if (!d.place) miss.push('어디서');
+    if (!d.what) miss.push('무엇을/어떻게');
+    if (!d.why) miss.push('왜');
+    if (!d.detail) miss.push('당시 상황');
+    if (!d.writtenDate) miss.push('작성일');
+    if (form.accessCode && !d.accessCode) miss.push('입장 코드');
+    if (!hasInk) miss.push('서명');
+    if (!d.agree) miss.push('안내 확인 체크');
+    return miss;
+  }
+
+  // ===== 확인 화면 → 수정 또는 최종 제출 =====
+  var review = document.getElementById('review');
+  var errBox2 = document.getElementById('err2');
+  var finalBtn = document.getElementById('finalBtn');
+  var pending = null;
+
+  function koDate(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    return m ? m[1] + '년 ' + Number(m[2]) + '월 ' + Number(m[3]) + '일' : '';
+  }
+  function describe(d) {
+    var period = d.periodType === 'first'
+      ? '① 처음 있는 일 (' + (koDate(d.firstDate) || '날짜 미기재') + (d.firstHour ? ' ' + d.firstHour + '시경' : '') + ')'
+      : '② ' + (d.months || '__') + '개월간 ' + (d.times || '__') + '번 정도';
+    var places = { classroom: '① 교실', toilet: '② 화장실', hallway: '③ 복도' };
+    var place = places[d.place] || ('④ 기타: 학교 안(' + (d.placeIn || '') + ') 학교 밖(' + (d.placeOut || '') + ')');
+    var witness = '① 같은 반 친구(' + (d.witnessSame || '') + ')\n② 다른 반 친구(' + (d.witnessOther || '') + ')' +
+      (d.witnessEtc ? '\n③ 기타(' + d.witnessEtc + ')' : '');
+    return [
+      ['성명', d.name],
+      ['학년/반 · 성별', d.grade + '학년 ' + d.klass + '반 · ' + d.gender],
+      ['누가 (관련학생 모두)', d.related || '-'],
+      ['사안 기간', period],
+      ['어디서', place],
+      ['무엇을 / 어떻게', d.what],
+      ['왜', d.why],
+      ['목격한 학생 (모두)', witness],
+      ['당시 상황', d.detail]
+    ];
+  }
+  function showReview(d) {
+    document.getElementById('reviewBody').innerHTML = describe(d).map(function (r) {
+      return '<div class="review-row"><div>' + escapeHtml(r[0]) + '</div><div>' + escapeHtml(r[1]) + '</div></div>';
+    }).join('');
+    document.getElementById('reviewDate').textContent = '작성일 ' + koDate(d.writtenDate);
+    document.getElementById('reviewName').textContent = d.name;
+    document.getElementById('reviewSig').src = d.signatureOverlay;
+    errBox2.textContent = '';
+    form.hidden = true; review.hidden = false;
+    window.scrollTo(0, 0);
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    errBox.textContent = '';
+    var d = collect();
+    var miss = check(d);
+    if (miss.length) { errBox.textContent = '다음 항목을 채울 것: ' + miss.join(', '); return; }
+    var sig = signatureImages();
+    d.signature = sig.jpg;
+    d.signatureOverlay = sig.png;
+    pending = d;
+    showReview(d);
+  });
+
+  // 수정하기: 입력한 내용과 서명을 그대로 둔 채 작성 화면으로 돌아감
+  document.getElementById('editBtn').addEventListener('click', function () {
+    pending = null;
+    review.hidden = true; form.hidden = false;
+    resizePad();
+    window.scrollTo(0, 0);
+  });
+
+  finalBtn.addEventListener('click', function () {
+    if (!pending) return;
+    finalBtn.disabled = true; finalBtn.textContent = '제출 중...';
+    document.getElementById('editBtn').disabled = true;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        document.getElementById('paper').innerHTML =
+          '<div class="done"><h2>제출 완료</h2><p>' + escapeHtml(res.name) +
+          ' 학생의 자기변론서가 제출되었음.<br>(' + escapeHtml(res.submittedAt) + ')</p>' +
+          '<p class="hint">제출한 내용은 담당 선생님만 볼 수 있음. 이 창은 닫아도 됨.</p></div>';
+        window.scrollTo(0, 0);
+      })
+      .withFailureHandler(function (err) {
+        finalBtn.disabled = false; finalBtn.textContent = '최종 제출';
+        document.getElementById('editBtn').disabled = false;
+        errBox2.textContent = '제출 실패: ' + (err && err.message ? err.message : err);
+      })
+      .submitStatement(pending);
+  });
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+})();
+</script>
+</body>
+</html>
