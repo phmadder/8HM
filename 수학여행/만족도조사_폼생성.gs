@@ -65,6 +65,9 @@ function createSurvey() {
   const sheet = SpreadsheetApp.create(TITLE + ' (응답)');
   form.setDestination(FormApp.DestinationType.SPREADSHEET, sheet.getId());
 
+  // 새 폼이 '게시 안 됨' 상태로 만들어지는 경우를 대비해 게시함(이 기능이 없는 환경에서는 건너뜀)
+  if (typeof form.setPublished === 'function') form.setPublished(true);
+
   // ── 주소·QR코드 ──
   const longUrl = form.getPublishedUrl();
   const shortUrl = form.shortenFormUrl(longUrl);
