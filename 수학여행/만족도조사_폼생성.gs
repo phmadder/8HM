@@ -10,6 +10,7 @@
  *  2. 이 파일 내용을 전부 붙여 넣고 저장
  *  3. 위쪽 함수 목록에서 createSurvey 선택 → [실행] → 권한 승인
  *  4. [실행 로그]에 폼 주소·QR 파일 주소가 나옴. 결과물은 '수학여행' 폴더에 저장됨.
+ *  ※ 이미 만든 폼에 여행사 가이드 문항만 더할 때는 addGuideQuestions 를 실행함.
  *
  * 만들어지는 것
  *  - 구글 폼 1개(첫 문항에서 학생/교사 선택 → 해당 섹션으로 이동)
@@ -139,6 +140,8 @@ function addStudentItems_(form) {
     .setColumns(SAT5)
     .setRequired(true);
 
+  addStudentGuideItems_(form);
+
   form.addGridItem()
     .setTitle('다음 문장에 얼마나 동의하나요?')
     .setRows([
@@ -211,6 +214,8 @@ function addTeacherItems_(form) {
     .setColumns(SAT5)
     .setRequired(true);
 
+  addTeacherGuideItems_(form);
+
   form.addGridItem()
     .setTitle('다음 문장에 얼마나 동의하십니까?')
     .setRows([
@@ -227,6 +232,104 @@ function addTeacherItems_(form) {
   form.addParagraphTextItem().setTitle('잘 운영된 점');
   form.addParagraphTextItem().setTitle('개선이 필요한 점(안전·업무 부담·일정 등)');
   form.addParagraphTextItem().setTitle('내년 수학여행 장소·프로그램 제안');
+}
+
+// ── 여행사 가이드 문항 ──
+const GUIDE_STUDENT_TITLE = '여행사 가이드 만족도';
+const GUIDE_TEACHER_TITLE = '여행사 가이드 업무 수행 평가';
+
+function addStudentGuideItems_(form) {
+  return [
+    form.addGridItem()
+      .setTitle(GUIDE_STUDENT_TITLE)
+      .setHelpText('선생님이 아닌, 여행사에서 나온 가이드에 대한 질문입니다.')
+      .setRows([
+        '견학 장소에 대한 설명·안내',
+        '일정·집합 시간 안내',
+        '이동 중 안전 안내',
+        '도움이 필요할 때의 도움',
+        '친절함',
+      ])
+      .setColumns(SAT5.concat(['잘 모르겠음']))
+      .setRequired(true),
+    form.addMultipleChoiceItem()
+      .setTitle('수학여행 중 가이드에게 안내나 도움을 직접 받은 적이 있나요?')
+      .setChoiceValues(['여러 번 있다', '한두 번 있다', '없다', '가이드가 누구인지 모르겠다'])
+      .setRequired(true),
+  ];
+}
+
+function addTeacherGuideItems_(form) {
+  return [
+    form.addGridItem()
+      .setTitle(GUIDE_TEACHER_TITLE)
+      .setHelpText('여행사((유)사랑여행사) 소속 가이드가 아래 업무를 얼마나 수행했는지 평가해 주십시오.')
+      .setRows([
+        '사전 협의한 일정대로 진행',
+        '견학지 해설·현장 안내',
+        '시간 관리·이동 동선 안내',
+        '인원 점검·안전 관리 보조',
+        '식당·숙소·입장 등 현장 조율',
+        '돌발 상황 대응',
+        '인솔 교직원의 업무 부담 경감',
+      ])
+      .setColumns(AGREE5.concat(['해당 없음·모름']))
+      .setRequired(true),
+    form.addCheckboxItem()
+      .setTitle('가이드가 수행하지 않았거나 부족했던 업무를 모두 고르십시오.')
+      .setChoiceValues([
+        '견학지 해설·안내',
+        '일정·시간 관리',
+        '인원 점검',
+        '안전 관리',
+        '식당·숙소·입장 조율',
+        '돌발 상황 대응',
+        '특별히 없음',
+      ])
+      .showOtherOption(true)
+      .setRequired(true),
+    form.addScaleItem()
+      .setTitle('가이드 서비스 전반에 대한 만족도')
+      .setBounds(1, 5)
+      .setLabels('매우 불만족', '매우 만족')
+      .setRequired(true),
+    form.addMultipleChoiceItem()
+      .setTitle('내년에도 같은 여행사와 계약하는 것에 대한 의견')
+      .setChoiceValues(['찬성', '조건부 찬성(가이드 업무 보완 시)', '반대', '잘 모르겠음'])
+      .setRequired(true),
+    form.addParagraphTextItem()
+      .setTitle('가이드 관련 구체적 사례(잘된 점·부족했던 점, 계약 이행 점검 및 업체 선정 참고용)'),
+  ];
+}
+
+/**
+ * 이미 만든 폼에 가이드 문항만 끼워 넣음(폼 주소·QR코드는 그대로 유지됨).
+ * 학생 문항은 '숙소·이동·운영 만족도' 다음, 교직원 문항은 '운영 영역별 만족도' 다음에 들어감.
+ */
+const EXISTING_FORM_ID = '1Q6Z6AINCoKb-UBzqCH9wk6Yfksya4jNbbMe4R6L8Upc';
+
+function addGuideQuestions() {
+  const form = FormApp.openById(EXISTING_FORM_ID);
+  if (findItem_(form, GUIDE_STUDENT_TITLE) || findItem_(form, GUIDE_TEACHER_TITLE)) {
+    Logger.log('가이드 문항이 이미 있어 아무것도 바꾸지 않음.');
+    return;
+  }
+  insertAfter_(form, '숙소·이동·운영 만족도', addStudentGuideItems_(form));
+  insertAfter_(form, '운영 영역별 만족도', addTeacherGuideItems_(form));
+  Logger.log('가이드 문항 추가 완료: ' + form.getEditUrl());
+}
+
+function findItem_(form, title) {
+  return form.getItems().filter(function (item) { return item.getTitle() === title; })[0];
+}
+
+function insertAfter_(form, anchorTitle, items) {
+  const anchor = findItem_(form, anchorTitle);
+  if (!anchor) throw new Error('기준 문항을 찾을 수 없음: ' + anchorTitle);
+  const base = anchor.getIndex();
+  items.forEach(function (item, k) {
+    form.moveItem(item, base + 1 + k);
+  });
 }
 
 function getFolder_() {
