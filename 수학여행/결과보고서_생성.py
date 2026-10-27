@@ -14,7 +14,7 @@ import pandas as pd
 from hwpx import HwpxDocument
 
 STUDENT_TOTAL = 29  # 참가 학생 수(운영계획 변경 기안 기준)
-STAFF_TOTAL = 6     # 인솔 교직원 수(같은 기안 기준)
+STAFF_TOTAL = 5     # 인솔 교직원 6명 중 교감 1명은 출장으로 조사 제외
 
 SCORE = {
     '매우 만족': 5, '만족': 4, '보통': 3, '불만족': 2, '매우 불만족': 1,
@@ -185,7 +185,7 @@ def build(csv_path, out_path):
     r.table(['구분', '내용'], [
         ['목적', '수학여행 운영 결과를 점검하고 차년도 계획 수립에 반영'],
         ['수학여행 기간', '2026. 10. 21.(수) ~ 10. 23.(금) [2박 3일], 서울 일대'],
-        ['조사 대상', f'참가 학생 {STUDENT_TOTAL}명, 인솔 교직원 {STAFF_TOTAL}명'],
+        ['조사 대상', f'참가 학생 {STUDENT_TOTAL}명, 인솔 교직원 {STAFF_TOTAL}명(교감 1명 출장으로 제외)'],
         ['조사 방법', '구글 설문(익명), 학생·교직원 문항 분리'],
         ['집계 기준일', date.today().strftime('%Y. %m. %d.')],
     ], [25, 75])
