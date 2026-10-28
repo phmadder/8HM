@@ -10,6 +10,7 @@ from datetime import date
 
 import koreanize_matplotlib  # noqa: F401  (그래프 한글 글꼴)
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import pandas as pd
 from hwpx import HwpxDocument
 
@@ -84,6 +85,8 @@ def bar_chart(labels, values, title, xmax=5, xlabel='평균(5점 만점)'):
     ax.spines[['top', 'right']].set_visible(False)
     if xmax == 5:
         ax.axvline(3, color='#999999', linestyle='--', linewidth=0.8)
+    else:
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     for b, v in zip(bars, values):
         text = f'{v:.2f}' if xmax == 5 else f'{int(v)}'
         ax.text(b.get_width() + xmax * 0.01, b.get_y() + b.get_height() / 2, text, va='center')
