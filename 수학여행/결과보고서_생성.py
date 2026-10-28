@@ -71,10 +71,12 @@ def bar_chart(labels, values, title, xmax=5, xlabel='평균(5점 만점)'):
         return None
     labels, values = zip(*pairs)
     fig, ax = plt.subplots(figsize=(7.5, 0.5 * len(labels) + 1.2), dpi=150)
-    colors = ['#C0504D' if v < 3 else '#4F81BD' for v in values]
+    # 빨간색은 5점 척도 평균이 3점 미만일 때만 씀(인원수 그래프는 모두 파란색)
+    colors = ['#C0504D' if xmax == 5 and v < 3 else '#4F81BD' for v in values]
     bars = ax.barh(range(len(labels)), values, color=colors)
     ax.set_yticks(range(len(labels)))
-    ax.set_yticklabels(labels)
+    # '기타' 서술 응답처럼 긴 항목은 그래프에서만 줄임(표에는 전체 문장이 들어감)
+    ax.set_yticklabels([l.strip() if len(l.strip()) <= 22 else l.strip()[:21] + '…' for l in labels])
     ax.invert_yaxis()
     ax.set_xlim(0, xmax * 1.12)
     ax.set_xlabel(xlabel)
