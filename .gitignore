@@ -1,0 +1,8 @@
+# 학생 정보·열쇠 파일은 깃허브에 올리지 않음
+비공개/
+.env
+.env.*
+*.pem
+*.key
+*credentials*.json
+*token*.json
