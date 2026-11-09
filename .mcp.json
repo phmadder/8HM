@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "playmcp": {
+      "type": "http",
+      "url": "https://playmcp.kakao.com/mcp"
+    }
+  }
+}
